@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# # 📦 PHÂN TÍCH NHU CẦU XE TẢI MÙA VỤ - 5 NĂM
+# # PHÂN TÍCH NHU CẦU XE TẢI MÙA VỤ - 5 NĂM
 # ### Lĩnh vực: Vận tải / Logistics tại Việt Nam
 # 
 # **Mục tiêu phân tích:**
@@ -13,7 +13,7 @@
 # 
 # ---
 
-# ## ⚙️ CELL 1: KHAI BÁO THƯ VIỆN
+# ## CELL 1: KHAI BÁO THƯ VIỆN
 
 # In[1]:
 
@@ -50,10 +50,10 @@ sns.set_theme(style='whitegrid', palette='muted')
 import warnings
 warnings.filterwarnings('ignore')
 
-print('✅ Khai báo thư viện thành công!')
+print('Khai báo thư viện thành công!')
 
 
-# ## 📂 CELL 2: ĐỌC DỮ LIỆU VÀ KIỂM TRA SƠ BỘ
+# ## CELL 2: ĐỌC DỮ LIỆU VÀ KIỂM TRA SƠ BỘ
 
 # In[2]:
 
@@ -67,29 +67,67 @@ print('✅ Khai báo thư viện thành công!')
 df = pd.read_excel('Du_Bao_Nhu_Cau_Xe_Tai_Mua_Vu_5Nam.xlsx')
 
 print('=' * 60)
-print('📋 THÔNG TIN TỔNG QUAN VỀ DỮ LIỆU')
+print('THÔNG TIN TỔNG QUAN VỀ DỮ LIỆU')
 print('=' * 60)
-print(f'  • Số dòng (quan sát): {df.shape[0]:,}')
-print(f'  • Số cột (biến):      {df.shape[1]}')
-print(f'  • Các cột có trong bộ dữ liệu: {list(df.columns)}')
+print(f'  - Số dòng (quan sát): {df.shape[0]:,}')
+print(f'  - Số cột (biến):      {df.shape[1]}')
+print(f'  - Các cột có trong bộ dữ liệu: {list(df.columns)}')
 print()
 
-print('📌 Kiểu dữ liệu của từng cột:')
+print('Kiểu dữ liệu của từng cột:')
 print(df.dtypes)
 print()
 
-print('📌 5 dòng dữ liệu đầu tiên:')
+print('5 dòng dữ liệu đầu tiên:')
 display(df.head())
 
-print('📌 5 dòng dữ liệu cuối cùng:')
+print('5 dòng dữ liệu cuối cùng:')
 display(df.tail())
 
-print('📌 Thống kê mô tả (Descriptive Statistics):')
+print('Thống kê mô tả (Descriptive Statistics):')
 display(df.describe())
+
+# Chuẩn hóa chuỗi và kiểu dữ liệu trước khi phân tích
+string_columns = ['Year_Week', 'Route', 'Fleet_Type']
+for column in string_columns:
+    df[column] = df[column].astype('string').str.strip()
+
+df['Route'] = df['Route'].astype('category')
+df['Fleet_Type'] = df['Fleet_Type'].astype('category')
+df['Year'] = pd.to_numeric(df['Year'], downcast='integer')
+df['Week'] = pd.to_numeric(df['Week'], downcast='integer')
+df['Actual_Trips'] = pd.to_numeric(df['Actual_Trips'], downcast='integer')
+df['Is_Peak_Event'] = pd.to_numeric(df['Is_Peak_Event'], downcast='integer')
+df['Total_Volume_Tons'] = pd.to_numeric(df['Total_Volume_Tons'], downcast='float')
+
+# Các kiểm tra cleaning cơ bản. Dừng sớm nếu dữ liệu vi phạm khóa hoặc miền hợp lệ.
+key_columns = ['Year', 'Week', 'Route', 'Fleet_Type']
+expected_year_week = (
+    df['Year'].astype(str) + '-W' + df['Week'].astype(str).str.zfill(2)
+)
+quality_checks = {
+    'Dòng trùng hoàn toàn': int(df.duplicated().sum()),
+    'Dòng trùng khóa Year + Week + Route + Fleet_Type':
+        int(df.duplicated(key_columns, keep=False).sum()),
+    'Actual_Trips <= 0': int(df['Actual_Trips'].le(0).sum()),
+    'Total_Volume_Tons <= 0': int(df['Total_Volume_Tons'].le(0).sum()),
+    'Week ngoài miền 1..53': int((~df['Week'].between(1, 53)).sum()),
+    'Is_Peak_Event ngoài miền {0, 1}': int((~df['Is_Peak_Event'].isin([0, 1])).sum()),
+    'Year_Week không nhất quán': int(df['Year_Week'].ne(expected_year_week).sum())
+}
+
+print('\nBáo cáo kiểm tra chất lượng dữ liệu:')
+print(pd.Series(quality_checks, name='Số dòng vi phạm').to_string())
+
+if any(quality_checks.values()):
+    raise ValueError('Dữ liệu vi phạm các kiểm tra chất lượng. Cần xác minh trước khi phân tích.')
+
+memory_mb = df.memory_usage(deep=True).sum() / 1024 ** 2
+print(f'\nDữ liệu hợp lệ. Bộ nhớ sau tối ưu dtype: {memory_mb:.3f} MB')
 
 
 # ---
-# ## 🧹 NHIỆM VỤ 1: XỬ LÝ DỮ LIỆU (DATA PREPROCESSING)
+# ## NHIỆM VỤ 1: XỬ LÝ DỮ LIỆU (DATA PREPROCESSING)
 
 # ### CELL 3: Kiểm tra và xử lý giá trị khuyết (Missing Values)
 
@@ -101,7 +139,7 @@ display(df.describe())
 # ============================================================
 
 print('=' * 60)
-print('🔍 BƯỚC 1: KIỂM TRA GIÁ TRỊ KHUYẾT (MISSING VALUES)')
+print('BƯỚC 1: KIỂM TRA GIÁ TRỊ KHUYẾT (MISSING VALUES)')
 print('=' * 60)
 
 # Đếm số lượng giá trị khuyết trong từng cột
@@ -120,24 +158,22 @@ print()
 total_missing = df.isnull().sum().sum()
 
 if total_missing == 0:
-    print('✅ Bộ dữ liệu KHÔNG có giá trị khuyết. Không cần xử lý thêm bước này.')
+    print('Bộ dữ liệu KHÔNG có giá trị khuyết. Không cần xử lý thêm bước này.')
 else:
-    print(f'⚠️  Phát hiện tổng cộng {total_missing} giá trị khuyết. Tiến hành xử lý...')
+    print(f'Phát hiện tổng cộng {total_missing} giá trị khuyết. Tiến hành xử lý...')
 
     # --- Phương pháp xử lý phù hợp cho chuỗi thời gian ---
     # Sắp xếp dữ liệu theo thời gian trước khi điền giá trị khuyết
-    df = df.sort_values(by=['Year', 'Week', 'Route', 'Fleet_Type']).reset_index(drop=True)
+    df = df.sort_values(by=['Route', 'Fleet_Type', 'Year', 'Week']).reset_index(drop=True)
 
-    # Bước 1: Dùng phương pháp 'forward fill' (ffill) - điền bằng giá trị liền trước
-    # Phù hợp nhất cho chuỗi thời gian vì giả định giá trị ít thay đổi đột ngột
-    df['Actual_Trips'] = df['Actual_Trips'].ffill()
-    df['Total_Volume_Tons'] = df['Total_Volume_Tons'].ffill()
+    # Chỉ điền trong cùng tuyến và loại xe để không làm lẫn các chuỗi khác nhau.
+    fill_columns = ['Actual_Trips', 'Total_Volume_Tons']
+    df[fill_columns] = (
+        df.groupby(['Route', 'Fleet_Type'], observed=True)[fill_columns]
+          .transform(lambda series: series.ffill().bfill())
+    )
 
-    # Bước 2: Nếu vẫn còn (đầu chuỗi), dùng 'backward fill' (bfill)
-    df['Actual_Trips'] = df['Actual_Trips'].bfill()
-    df['Total_Volume_Tons'] = df['Total_Volume_Tons'].bfill()
-
-    print(f'✅ Đã xử lý xong giá trị khuyết bằng phương pháp Forward Fill + Backward Fill.')
+    print(f'Đã xử lý xong giá trị khuyết bằng phương pháp Forward Fill + Backward Fill.')
     print(f'   Kiểm tra lại: Tổng giá trị khuyết còn lại = {df.isnull().sum().sum()}')
 
 
@@ -147,73 +183,85 @@ else:
 
 
 # ============================================================
-# CELL 4: Phát hiện ngoại lai bằng phương pháp IQR
-# Lưu ý: CHỈ xét các tuần THƯỜNG (Is_Peak_Event = 0),
-# loại trừ các tuần cao điểm lễ tết vì chúng có giá trị
-# cao bất thường là do bản chất mùa vụ, không phải ngoại lai.
+# CELL 4: Gắn cờ ứng viên ngoại lai trên residual sau khi loại trend và mùa vụ.
+# Không tự động loại bỏ/winsorize vì điểm cao có thể là trend hoặc mùa vụ thực.
 # ============================================================
 
 print('=' * 60)
-print('🔍 BƯỚC 2: PHÁT HIỆN NGOẠI LAI (OUTLIERS) - PHƯƠNG PHÁP IQR')
+print('BƯỚC 2: GẮN CỜ ỨNG VIÊN NGOẠI LAI TRÊN RESIDUAL')
 print('=' * 60)
-print('⚠️  Chỉ áp dụng trên dữ liệu tuần THƯỜNG (Is_Peak_Event = 0)')
-print('   (Các tuần lễ tết bị loại trừ vì giá trị cao là do mùa vụ, không phải lỗi dữ liệu)')
+print('Cờ ngoại lai dùng để xác minh, không tự động xóa hoặc thay thế dữ liệu.')
 print()
 
-# Lọc ra chỉ các tuần thường (không phải cao điểm lễ tết)
-df_normal = df[df['Is_Peak_Event'] == 0].copy()
+# Observed = Trend + Seasonality + Residual.
+# Ước lượng trend tuyến tính và mức mùa vụ theo từng Route + Fleet_Type.
+df['Time_Index'] = (df['Year'] - df['Year'].min()) * 53 + df['Week']
+df['Is_Peak_Week'] = (
+    df.groupby(['Year', 'Week'], observed=True)['Is_Peak_Event'].transform('max')
+)
+seasonal_groups = ['Route', 'Fleet_Type', 'Week']
+metric_columns = ['Actual_Trips', 'Total_Volume_Tons']
+flag_columns = []
 
-def detect_outliers_iqr(data, column):
-    """Hàm phát hiện ngoại lai bằng phương pháp IQR (Interquartile Range)"""
-    Q1 = data[column].quantile(0.25)  # Tứ phân vị thứ 1
-    Q3 = data[column].quantile(0.75)  # Tứ phân vị thứ 3
-    IQR = Q3 - Q1                      # Khoảng tứ phân vị
+for column in metric_columns:
+    trend_column = f'{column}_Trend'
+    detrended_column = f'{column}_Detrended'
+    baseline_column = f'{column}_Seasonal_Baseline'
+    residual_column = f'{column}_Residual'
+    flag_column = f'{column}_Outlier_Candidate'
 
-    # Ngưỡng phát hiện ngoại lai: nằm ngoài khoảng [Q1 - 1.5*IQR, Q3 + 1.5*IQR]
-    lower_bound = Q1 - 1.5 * IQR
-    upper_bound = Q3 + 1.5 * IQR
+    def estimate_linear_trend(series):
+        time_index = df.loc[series.index, 'Time_Index'].to_numpy()
+        slope, intercept = np.polyfit(time_index, series.to_numpy(), 1)
+        return pd.Series(slope * time_index + intercept, index=series.index)
 
-    # Đánh dấu các dòng là ngoại lai
-    outliers = data[(data[column] < lower_bound) | (data[column] > upper_bound)]
+    df[trend_column] = (
+        df.groupby(['Route', 'Fleet_Type'], observed=True)[column]
+          .transform(estimate_linear_trend)
+    )
+    df[detrended_column] = df[column] - df[trend_column]
+    df[baseline_column] = (
+        df.groupby(seasonal_groups, observed=True)[detrended_column].transform('median')
+    )
+    df[residual_column] = df[detrended_column] - df[baseline_column]
 
-    print(f'  📊 Cột [{column}]:')
-    print(f'     Q1 = {Q1:.2f} | Q3 = {Q3:.2f} | IQR = {IQR:.2f}')
-    print(f'     Ngưỡng dưới (Lower Bound) = {lower_bound:.2f}')
-    print(f'     Ngưỡng trên (Upper Bound) = {upper_bound:.2f}')
-    print(f'     Số lượng ngoại lai phát hiện = {len(outliers)} dòng ({len(outliers)/len(data)*100:.2f}%)')
-    print()
-    return lower_bound, upper_bound
+    def flag_group_iqr(series):
+        q1, q3 = series.quantile([0.25, 0.75])
+        iqr = q3 - q1
+        return (series < q1 - 1.5 * iqr) | (series > q3 + 1.5 * iqr)
 
-# Phát hiện ngoại lai cho cột Actual_Trips
-lb_trips, ub_trips = detect_outliers_iqr(df_normal, 'Actual_Trips')
+    df[flag_column] = (
+        df.groupby(['Route', 'Fleet_Type'], observed=True)[residual_column]
+          .transform(flag_group_iqr)
+    ) & df['Is_Peak_Week'].eq(0)
+    flag_columns.append(flag_column)
+    print(f'  - {column}: {int(df[flag_column].sum())} ứng viên cần xác minh')
 
-# Phát hiện ngoại lai cho cột Total_Volume_Tons
-lb_vol, ub_vol = detect_outliers_iqr(df_normal, 'Total_Volume_Tons')
+df['Is_Outlier_Candidate'] = df[flag_columns].any(axis=1)
+outlier_candidates = df[df['Is_Outlier_Candidate']].copy()
+print(f'\nTổng số dòng có ít nhất một cờ ngoại lai: {len(outlier_candidates)}')
+print('Các dòng này được giữ nguyên để tránh xóa nhầm trend/mùa vụ thực tế.')
 
 # --- Trực quan hóa ngoại lai bằng Boxplot ---
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
 # Boxplot cho Actual_Trips
-axes[0].boxplot(df_normal['Actual_Trips'], patch_artist=True,
-                boxprops=dict(facecolor='#4ECDC4', color='#2c3e50'),
-                medianprops=dict(color='#e74c3c', linewidth=2))
-axes[0].set_title('Boxplot: Actual_Trips\n(Tuần thường - không phải lễ tết)', fontsize=14, fontweight='bold')
+sns.boxplot(data=df, x='Fleet_Type', y='Actual_Trips', hue='Route', ax=axes[0])
+axes[0].set_title('Boxplot Actual_Trips theo tuyến và loại xe', fontsize=14, fontweight='bold')
 axes[0].set_ylabel('Số chuyến xe (chuyến)')
-axes[0].set_xticks([])
+axes[0].set_xlabel('Loại xe')
 
 # Boxplot cho Total_Volume_Tons
-axes[1].boxplot(df_normal['Total_Volume_Tons'], patch_artist=True,
-                boxprops=dict(facecolor='#F7DC6F', color='#2c3e50'),
-                medianprops=dict(color='#e74c3c', linewidth=2))
-axes[1].set_title('Boxplot: Total_Volume_Tons\n(Tuần thường - không phải lễ tết)', fontsize=14, fontweight='bold')
+sns.boxplot(data=df, x='Fleet_Type', y='Total_Volume_Tons', hue='Route', ax=axes[1])
+axes[1].set_title('Boxplot Total_Volume_Tons theo tuyến và loại xe', fontsize=14, fontweight='bold')
 axes[1].set_ylabel('Khối lượng hàng hóa (Tấn)')
-axes[1].set_xticks([])
+axes[1].set_xlabel('Loại xe')
 
 plt.suptitle('Kiểm Tra Ngoại Lai (Outlier Detection) - Phương Pháp IQR', fontsize=16, fontweight='bold', y=1.02)
 plt.tight_layout()
 plt.savefig('01_Outlier_Boxplot.png', bbox_inches='tight', dpi=150)
 plt.show()
-print('✅ Đã lưu biểu đồ: 01_Outlier_Boxplot.png')
+print('Đã lưu biểu đồ: 01_Outlier_Boxplot.png')
 
 
 # ### CELL 5: Gộp dữ liệu từ mức Tuần lên mức Tháng (Resampling)
@@ -228,24 +276,38 @@ print('✅ Đã lưu biểu đồ: 01_Outlier_Boxplot.png')
 # ============================================================
 
 print('=' * 60)
-print('🔍 BƯỚC 3: GỘP DỮ LIỆU TUẦN -> THÁNG (RESAMPLING)')
+print('BƯỚC 3: GỘP DỮ LIỆU TUẦN -> THÁNG (RESAMPLING)')
 print('=' * 60)
 
-# Tạo cột 'Date' là ngày đầu tiên của mỗi tuần trong năm
-# Dùng ISO week date: thứ Hai đầu tuần để xác định ngày
+# Dùng thứ Năm của ISO week để tuần được gán vào tháng chứa phần lớn số ngày.
+# Quy ước này cũng giữ 2025-W01 trong năm 2025 thay vì đưa vào tháng 12/2024.
 df['Date'] = pd.to_datetime(
-    df['Year'].astype(str) + '-W' + df['Week'].astype(str).str.zfill(2) + '-1',
+    df['Year'].astype(str) + '-W' + df['Week'].astype(str).str.zfill(2) + '-4',
     format='%G-W%V-%u'
 )
 
 # Tạo cột 'YearMonth' để gộp theo tháng
 df['YearMonth'] = df['Date'].dt.to_period('M')
 
-# --- Gộp toàn bộ dữ liệu theo Tháng (tổng hợp tất cả tuyến và loại xe) ---
-df_monthly = df.groupby('YearMonth').agg(
+# Tổng hợp về đúng một dòng mỗi tuần trước khi gộp tháng.
+# Is_Peak_Week đã được chuẩn hóa: tuần cao điểm nếu có ít nhất một dòng được gắn cờ.
+df_weekly = df.groupby(
+    ['Year', 'Week', 'Year_Week', 'YearMonth', 'Date'], observed=True
+).agg(
     Total_Trips=('Actual_Trips', 'sum'),
     Total_Volume=('Total_Volume_Tons', 'sum'),
-    Peak_Weeks=('Is_Peak_Event', 'sum')   # Đếm số tuần cao điểm trong tháng
+    Is_Peak_Week=('Is_Peak_Week', 'max')
+).reset_index()
+
+# Ngoài tổng tháng, giữ số tuần và trung bình tuần để so sánh/decomposition
+# không bị thiên lệch do tháng có 4 hoặc 5 tuần.
+df_monthly = df_weekly.groupby('YearMonth', observed=True).agg(
+    Total_Trips=('Total_Trips', 'sum'),
+    Total_Volume=('Total_Volume', 'sum'),
+    Avg_Weekly_Trips=('Total_Trips', 'mean'),
+    Avg_Weekly_Volume=('Total_Volume', 'mean'),
+    Weeks_In_Month=('Year_Week', 'nunique'),
+    Peak_Weeks=('Is_Peak_Week', 'sum')
 ).reset_index()
 
 # Chuyển YearMonth sang kiểu datetime để vẽ biểu đồ
@@ -260,9 +322,12 @@ df_monthly_route['Date'] = df_monthly_route['YearMonth'].dt.to_timestamp()
 
 # --- Gộp theo Năm và Tháng trong năm (để vẽ bar chart so sánh theo tháng) ---
 df['Month'] = df['Date'].dt.month
-df_by_month = df.groupby(['Year', 'Month']).agg(
-    Total_Trips=('Actual_Trips', 'sum'),
-    Total_Volume=('Total_Volume_Tons', 'sum')
+df_weekly['Month'] = df_weekly['Date'].dt.month
+df_by_month = df_weekly.groupby(['Year', 'Month'], observed=True).agg(
+    Total_Trips=('Total_Trips', 'sum'),
+    Total_Volume=('Total_Volume', 'sum'),
+    Avg_Weekly_Trips=('Total_Trips', 'mean'),
+    Avg_Weekly_Volume=('Total_Volume', 'mean')
 ).reset_index()
 
 # --- Gộp theo Năm và Tuyến đường ---
@@ -276,15 +341,15 @@ df_by_fleet = df.groupby('Fleet_Type').agg(
     Total_Volume=('Total_Volume_Tons', 'sum')
 ).reset_index()
 
-print(f'✅ Gộp dữ liệu theo tháng hoàn tất!')
+print(f'Gộp dữ liệu theo tháng hoàn tất!')
 print(f'   Số tháng trong bộ dữ liệu gộp: {len(df_monthly)} tháng')
 print()
-print('📌 Mẫu dữ liệu theo tháng (5 dòng đầu):')
+print('Mẫu dữ liệu theo tháng (5 dòng đầu):')
 display(df_monthly.head())
 
 
 # ---
-# ## 📊 NHIỆM VỤ 2: TRỰC QUAN HÓA DỮ LIỆU
+# ## NHIỆM VỤ 2: TRỰC QUAN HÓA DỮ LIỆU
 
 # ### CELL 6: Biểu đồ 1 - Line Chart (Xu hướng theo thời gian)
 
@@ -354,14 +419,14 @@ axes[1].yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f'{x:,.0f}'
 plt.tight_layout(pad=3.0)
 plt.savefig('02_LineChart_XuHuong.png', bbox_inches='tight', dpi=150)
 plt.show()
-print('✅ Đã lưu biểu đồ: 02_LineChart_XuHuong.png')
+print('Đã lưu biểu đồ: 02_LineChart_XuHuong.png')
 
 
-# ### 📝 NHẬN XÉT & INSIGHT - BIỂU ĐỒ 1 (LINE CHART)
+# ### NHẬN XÉT & INSIGHT - BIỂU ĐỒ 1 (LINE CHART)
 # 
 # > **Xu hướng tổng thể (Trend):** Quan sát biểu đồ đường trong giai đoạn 2021–2025, cả tổng khối lượng hàng hóa (`Total_Volume_Tons`) lẫn tổng số chuyến xe (`Actual_Trips`) đều cho thấy xu hướng tăng trưởng bền vững qua từng năm. Điều này phản ánh sự phục hồi và tăng tốc của chuỗi cung ứng hàng hóa Bắc–Nam sau giai đoạn đại dịch, phù hợp với đà tăng trưởng xuất nhập khẩu và thương mại nội địa của Việt Nam.
 # >
-# > **Tính mùa vụ (Seasonality):** Biểu đồ thể hiện rõ ràng các đỉnh nhu cầu định kỳ, đặc biệt tập trung vào **quý I hàng năm (tháng 1–2)** — trùng với thời điểm trước và sau Tết Nguyên Đán. Đây là giai đoạn các doanh nghiệp logistics ghi nhận lượng hàng hóa tăng đột biến do nhu cầu tích trữ hàng tiêu dùng, thực phẩm và hàng điện tử trước Tết. Sau kỳ nghỉ Tết, nhu cầu hạ nhiệt nhanh trong tháng 2–3 trước khi phục hồi trở lại.
+# > **Tính mùa vụ (Seasonality):** Các tháng có tổng nhu cầu cao cần được đối chiếu với số tuần được phân vào tháng. Tổng tháng có thể cao chỉ vì tháng đó chứa 5 tuần; vì vậy kết luận mùa vụ chính thức sử dụng nhu cầu trung bình mỗi tuần trong phần decomposition thay vì chỉ nhìn tổng tháng.
 # >
 # > **Đường trung bình động 3 tháng (MA3):** Đường MA3 màu đỏ đứt nét giúp làm mượt các biến động ngắn hạn, làm nổi bật xu hướng nền tảng. Khoảng cách giữa đường thực tế và đường MA3 càng lớn trong các tháng cao điểm, chứng tỏ tính mùa vụ có biên độ dao động mạnh và có thể dự báo được với mức độ tin cậy cao.
 
@@ -400,16 +465,13 @@ axes[0].yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f'{x:,.0f}'
 axes[0].set_ylim(0, df_by_route['Total_Trips'].max() * 1.2)
 
 # --- Subplot 2: Bar Chart theo tháng trong năm (trung bình qua 5 năm) ---
-# Tính trung bình số chuyến theo từng tháng trong năm (qua 5 năm)
-df_avg_by_month = df_by_month.groupby('Month')['Total_Trips'].mean().reset_index()
+# Dùng trung bình tuần để tránh tháng có 5 tuần luôn cao hơn tháng có 4 tuần.
+df_avg_by_month = df_by_month.groupby('Month')['Avg_Weekly_Trips'].mean().reset_index()
 month_labels = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6',
                 'T7', 'T8', 'T9', 'T10', 'T11', 'T12']
 
-# Tô màu đặc biệt cho tháng có cao điểm lễ tết (tháng 1 và 2)
-bar_colors = ['#E74C3C' if m in [1, 2] else '#27AE60' for m in df_avg_by_month['Month']]
-
-bars2 = axes[1].bar(range(1, 13), df_avg_by_month['Total_Trips'],
-                    color=bar_colors, edgecolor='white', linewidth=1.2)
+bars2 = axes[1].bar(range(1, 13), df_avg_by_month['Avg_Weekly_Trips'],
+                    color='#27AE60', edgecolor='white', linewidth=1.2)
 
 # Thêm nhãn giá trị trên đầu mỗi cột
 for bar in bars2:
@@ -419,31 +481,25 @@ for bar in bars2:
                      xytext=(0, 5), textcoords='offset points',
                      ha='center', va='bottom', fontsize=9, fontweight='bold')
 
-axes[1].set_title('Trung Bình Số Chuyến Xe Theo Từng Tháng\n(Trung bình qua 5 năm 2021–2025)',
+axes[1].set_title('Nhu Cầu Trung Bình Tuần Theo Từng Tháng\n(Trung bình qua 5 năm 2021–2025)',
                   fontsize=14, fontweight='bold')
 axes[1].set_xlabel('Tháng trong năm')
-axes[1].set_ylabel('Trung bình số chuyến xe (chuyến)')
+axes[1].set_ylabel('Số chuyến trung bình mỗi tuần')
 axes[1].set_xticks(range(1, 13))
 axes[1].set_xticklabels(month_labels)
 axes[1].yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f'{x:,.0f}'))
 
-# Chú thích màu sắc
-from matplotlib.patches import Patch
-legend_elements = [Patch(facecolor='#E74C3C', label='Tháng cao điểm lễ tết'),
-                   Patch(facecolor='#27AE60', label='Tháng thường')]
-axes[1].legend(handles=legend_elements, loc='upper right')
-
 plt.tight_layout(pad=3.0)
 plt.savefig('03_BarChart_SoSanh.png', bbox_inches='tight', dpi=150)
 plt.show()
-print('✅ Đã lưu biểu đồ: 03_BarChart_SoSanh.png')
+print('Đã lưu biểu đồ: 03_BarChart_SoSanh.png')
 
 
-# ### 📝 NHẬN XÉT & INSIGHT - BIỂU ĐỒ 2 (BAR CHART)
+# ### NHẬN XÉT & INSIGHT - BIỂU ĐỒ 2 (BAR CHART)
 # 
 # > **So sánh theo tuyến đường:** Biểu đồ cột (trái) cho thấy tổng số chuyến vận chuyển tích lũy trong 5 năm giữa hai tuyến HN–HCM và HCM–HN là **tương đối cân bằng**, không có sự chênh lệch quá lớn. Điều này cho thấy dòng chảy hàng hóa trên trục Bắc–Nam là hai chiều khá đều nhau: hàng hóa công nghiệp, điện tử từ miền Bắc xuôi Nam và hàng nông sản, thủy sản từ miền Nam ra Bắc. Doanh nghiệp vận tải có thể tận dụng chiều về để tối ưu hóa chi phí vận hành (tránh xe chạy không tải).
 # >
-# > **So sánh theo tháng trong năm:** Biểu đồ cột (phải) bộc lộ rõ nét hai đỉnh cao điểm được tô màu đỏ tập trung vào **tháng 1 và tháng 2** — đây là giai đoạn cận Tết và sau Tết Nguyên Đán. Số chuyến xe trong giai đoạn này vượt đáng kể so với mức trung bình của các tháng còn lại trong năm. Đặc biệt, **tháng 2 thường thấp hơn tháng 1** do nghỉ lễ kéo dài. Điều này hàm ý rằng doanh nghiệp logistics cần **lên kế hoạch tăng cường năng lực đội xe và nhân sự từ tháng 11–12** để sẵn sàng đáp ứng nhu cầu đỉnh điểm.
+# > **So sánh theo tháng trong năm:** Biểu đồ phải sử dụng số chuyến trung bình mỗi tuần, nhờ đó loại bỏ thiên lệch giữa tháng có 4 và 5 tuần. Tháng cao nhất phải được kết luận từ chiều cao cột thực tế, không gán trước theo giả định về lễ Tết.
 
 # ### CELL 8: Biểu đồ 3 - Pie Chart (Tỷ trọng theo Loại xe)
 
@@ -519,10 +575,10 @@ axes[1].set_xlim(0, max(fleet_values) * 1.3)
 plt.tight_layout(pad=3.0)
 plt.savefig('04_PieChart_LoaiXe.png', bbox_inches='tight', dpi=150)
 plt.show()
-print('✅ Đã lưu biểu đồ: 04_PieChart_LoaiXe.png')
+print('Đã lưu biểu đồ: 04_PieChart_LoaiXe.png')
 
 
-# ### 📝 NHẬN XÉT & INSIGHT - BIỂU ĐỒ 3 (PIE CHART)
+# ### NHẬN XÉT & INSIGHT - BIỂU ĐỒ 3 (PIE CHART)
 # 
 # > **Cơ cấu đội xe:** Biểu đồ tròn thể hiện rõ sự **phân bổ tỷ trọng khối lượng hàng hóa** giữa hai loại phương tiện vận chuyển chính. **Container 30T** chiếm tỷ trọng lớn hơn về tổng khối lượng hàng hóa so với **Truck 15T**, điều này hoàn toàn hợp lý vì container có tải trọng gấp đôi xe tải thông thường, phù hợp với các lô hàng lớn, hàng công nghiệp và hàng xuất nhập khẩu.
 # >
@@ -611,12 +667,12 @@ axes[1].yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f'{x:,.0f}'
 plt.tight_layout(pad=3.0)
 plt.savefig('05_ScatterPlot_TuongQuan.png', bbox_inches='tight', dpi=150)
 plt.show()
-print(f'📊 Hệ số tương quan Pearson (r) = {corr_coef:.4f}')
-print(f'📊 Hệ số xác định (R²) = {corr_coef**2:.4f}')
-print('✅ Đã lưu biểu đồ: 05_ScatterPlot_TuongQuan.png')
+print(f'Hệ số tương quan Pearson (r) = {corr_coef:.4f}')
+print(f'Hệ số xác định (R²) = {corr_coef**2:.4f}')
+print('Đã lưu biểu đồ: 05_ScatterPlot_TuongQuan.png')
 
 
-# ### 📝 NHẬN XÉT & INSIGHT - BIỂU ĐỒ 4 (SCATTER PLOT)
+# ### NHẬN XÉT & INSIGHT - BIỂU ĐỒ 4 (SCATTER PLOT)
 # 
 # > **Mối tương quan chặt chẽ:** Biểu đồ phân tán cho thấy tồn tại một **mối tương quan dương mạnh (Positive Correlation)** giữa số chuyến xe (`Actual_Trips`) và tổng khối lượng hàng hóa vận chuyển (`Total_Volume_Tons`). Hệ số tương quan Pearson (r) tiệm cận 1.0 cho thấy khi số chuyến xe tăng lên, tổng khối lượng hàng hóa cũng tăng tỷ lệ thuận — điều này hợp lý về mặt vận hành logistics.
 # >
@@ -625,7 +681,7 @@ print('✅ Đã lưu biểu đồ: 05_ScatterPlot_TuongQuan.png')
 # > **Ứng dụng thực tiễn:** Kết quả này cho phép xây dựng mô hình dự báo đơn giản: từ kế hoạch vận tải (số chuyến) có thể ước lượng được khối lượng hàng hóa tương ứng, hỗ trợ đội kinh doanh lập báo giá và phân bổ nguồn lực hiệu quả hơn.
 
 # ---
-# ## 📉 NHIỆM VỤ 3: PHÂN RÃ CHUỖI THỜI GIAN (TIME SERIES DECOMPOSITION)
+# ## NHIỆM VỤ 3: PHÂN RÃ CHUỖI THỜI GIAN (TIME SERIES DECOMPOSITION)
 
 # ### CELL 10: Phân rã chuỗi thời gian theo tháng
 
@@ -649,18 +705,18 @@ print('✅ Đã lưu biểu đồ: 05_ScatterPlot_TuongQuan.png')
 # ============================================================
 
 print('=' * 60)
-print('📉 PHÂN RÃ CHUỖI THỜI GIAN - TỔNG KHỐI LƯỢNG HÀNG HÓA')
+print('PHÂN RÃ CHUỖI THỜI GIAN - KHỐI LƯỢNG TRUNG BÌNH MỖI TUẦN')
 print('=' * 60)
 
-# Chuẩn bị dữ liệu: chọn cột Total_Volume, đặt Date làm index
-ts_data = df_monthly.set_index('Date')['Total_Volume']
+# Dùng trung bình tuần để tháng có 5 tuần không tạo ra mùa vụ giả so với tháng có 4 tuần.
+ts_data = df_monthly.set_index('Date')['Avg_Weekly_Volume']
 
 # Đảm bảo index có tần suất tháng (Monthly frequency)
 ts_data = ts_data.asfreq('MS')  # MS = Month Start
 
-print(f'  • Số tháng dữ liệu: {len(ts_data)}')
-print(f'  • Giai đoạn: từ {ts_data.index[0].strftime("%m/%Y")} đến {ts_data.index[-1].strftime("%m/%Y")}')
-print(f'  • Chu kỳ mùa vụ (period): 12 tháng (1 năm)')
+print(f'  - Số tháng dữ liệu: {len(ts_data)}')
+print(f'  - Giai đoạn: từ {ts_data.index[0].strftime("%m/%Y")} đến {ts_data.index[-1].strftime("%m/%Y")}')
+print(f'  - Chu kỳ mùa vụ (period): 12 tháng (1 năm)')
 print()
 
 # Thực hiện phân rã chuỗi thời gian
@@ -704,12 +760,12 @@ for i, (data, title, ylabel) in enumerate(plot_data):
 
 axes[-1].set_xlabel('Thời gian (Tháng/Năm)', fontsize=12)
 
-plt.suptitle('Phân Rã Chuỗi Thời Gian - Tổng Khối Lượng Hàng Hóa Vận Chuyển\n(Additive Model | Period = 12 tháng)',
+plt.suptitle('Phân Rã Chuỗi Thời Gian - Khối Lượng Trung Bình Mỗi Tuần\n(Additive Model | Period = 12 tháng)',
              fontsize=16, fontweight='bold', y=1.01)
 plt.tight_layout(pad=2.0)
 plt.savefig('06_Decomposition_ChuoiThoiGian.png', bbox_inches='tight', dpi=150)
 plt.show()
-print('✅ Đã lưu biểu đồ: 06_Decomposition_ChuoiThoiGian.png')
+print('Đã lưu biểu đồ: 06_Decomposition_ChuoiThoiGian.png')
 
 
 # ### CELL 11: Phân tích chi tiết từng thành phần
@@ -722,20 +778,20 @@ print('✅ Đã lưu biểu đồ: 06_Decomposition_ChuoiThoiGian.png')
 # ============================================================
 
 print('=' * 60)
-print('📊 PHÂN TÍCH CHI TIẾT TỪNG THÀNH PHẦN')
+print('PHÂN TÍCH CHI TIẾT TỪNG THÀNH PHẦN')
 print('=' * 60)
 
 # --- Xu hướng (Trend) ---
-print('\n1️⃣  XU HƯỚNG (TREND):')
+print('\n1. XU HƯỚNG (TREND):')
 print(f'   Giá trị đầu kỳ (tháng đầu tiên): {trend.iloc[0]:,.2f} Tấn')
 print(f'   Giá trị cuối kỳ (tháng cuối cùng): {trend.iloc[-1]:,.2f} Tấn')
 growth_rate = (trend.iloc[-1] - trend.iloc[0]) / trend.iloc[0] * 100
 print(f'   Tỷ lệ tăng trưởng tổng thể (5 năm): {growth_rate:+.2f}%')
-avg_monthly_growth = growth_rate / (len(trend) - 1)
+avg_monthly_growth = ((trend.iloc[-1] / trend.iloc[0]) ** (1 / (len(trend) - 1)) - 1) * 100
 print(f'   Tăng trưởng trung bình mỗi tháng: {avg_monthly_growth:+.4f}%')
 
 # --- Mùa vụ (Seasonality) ---
-print('\n2️⃣  MÙA VỤ (SEASONALITY):')
+print('\n2. MÙA VỤ (SEASONALITY):')
 # Lấy chu kỳ mùa vụ đại diện (12 tháng đầu)
 seasonal_cycle = seasonal.iloc[:12].values
 month_names = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
@@ -751,31 +807,32 @@ print(f'   Tháng có chỉ số mùa vụ CAO NHẤT: {month_names[np.argmax(se
 print(f'   Tháng có chỉ số mùa vụ THẤP NHẤT: {month_names[np.argmin(seasonal_cycle)]}')
 
 # --- Nhiễu (Residual) ---
-print('\n3️⃣  NHIỄU (RESIDUAL):')
+print('\n3. NHIỄU (RESIDUAL):')
 print(f'   Trung bình nhiễu: {residual.mean():,.4f} Tấn (gần 0 là tốt)')
 print(f'   Độ lệch chuẩn nhiễu: {residual.std():,.2f} Tấn')
 print(f'   Giá trị nhiễu lớn nhất: {residual.max():+,.2f} Tấn')
 print(f'   Giá trị nhiễu nhỏ nhất: {residual.min():+,.2f} Tấn')
+print('   Lưu ý: residual lớn là tín hiệu cần xác minh, không tự động đồng nghĩa dữ liệu lỗi.')
 
-print('\n✅ Phân tích hoàn tất!')
+print('\nPhân tích hoàn tất!')
 
 
-# ### 📝 NHẬN XÉT & INSIGHT - PHÂN RÃ CHUỖI THỜI GIAN
+# ### NHẬN XÉT & INSIGHT - PHÂN RÃ CHUỖI THỜI GIAN
 # 
 # > **[1] Xu hướng (Trend):** Thành phần xu hướng cho thấy tổng khối lượng hàng hóa vận chuyển trên trục Bắc–Nam có **xu hướng tăng trưởng liên tục và bền vững** trong giai đoạn 2021–2025. Đây là tín hiệu tích cực phản ánh sự phát triển của hạ tầng logistics, tăng trưởng thương mại điện tử và sản xuất công nghiệp tại Việt Nam. Tốc độ tăng trưởng dương này là nền tảng để doanh nghiệp có thể tự tin mở rộng đội xe và mạng lưới vận hành trong các năm tới.
 # >
-# > **[2] Tính Mùa Vụ (Seasonality):** Thành phần mùa vụ bộc lộ một **mẫu dao động định kỳ rõ nét theo chu kỳ 12 tháng (1 năm)**. Chỉ số mùa vụ đạt **đỉnh cao nhất vào tháng 1** (trước Tết Nguyên Đán) khi nhu cầu tích trữ hàng hóa tăng vọt, sau đó **giảm sâu nhất vào tháng 2–3** (nghỉ Tết kéo dài, nhà máy đóng cửa). Từ tháng 4, nhu cầu phục hồi dần và duy trì ở mức ổn định đến cuối năm với một đỉnh phụ nhỏ vào tháng 9–10 (mùa hàng cuối năm). Biên độ dao động mùa vụ lớn này khẳng định tầm quan trọng của việc lập kế hoạch vận hành theo mùa, tránh tình trạng thiếu hụt xe vào cao điểm và dư thừa vào thấp điểm.
+# > **[2] Tính Mùa Vụ (Seasonality):** Thành phần mùa vụ được tính trên khối lượng trung bình mỗi tuần để tránh thiên lệch do tháng có 4 hoặc 5 tuần. Tháng cao nhất và thấp nhất phải lấy trực tiếp từ bảng kết quả được in phía trên, không gán trước theo giả định về lễ Tết.
 # >
-# > **[3] Nhiễu (Residual):** Phần nhiễu (hay phần dư) biểu thị các yếu tố ngẫu nhiên không giải thích được bởi xu hướng và mùa vụ. Trung bình của nhiễu xấp xỉ 0, điều này cho thấy mô hình phân rã **Additive** đã giải thích tốt hầu hết các biến động trong dữ liệu. Các đỉnh nhiễu bất thường (lớn bất thường) nếu có thể là dấu hiệu của các sự kiện không lường trước như đứt gãy chuỗi cung ứng, thay đổi chính sách vận tải đột ngột, hoặc thiên tai — cần được doanh nghiệp theo dõi và phân tích riêng.
+# > **[3] Nhiễu (Residual):** Phần dư là biến động chưa được trend và seasonality giải thích. Residual lớn chỉ là tín hiệu cần xác minh; nó có thể phản ánh sự kiện thực tế, thiếu biến giải thích hoặc dữ liệu lỗi. Không tự động xóa các quan sát này.
 
 # ---
-# ## ✅ TỔNG KẾT
+# ## TỔNG KẾT
 # 
 # | Nhiệm vụ | Nội dung | Kết quả |
 # |---|---|---|
-# | **Nhiệm vụ 1** | Xử lý dữ liệu | ✅ Kiểm tra NaN, Outliers (IQR), Gộp Tuần→Tháng |
-# | **Nhiệm vụ 2** | Trực quan hóa | ✅ Line Chart, Bar Chart, Pie Chart, Scatter Plot |
-# | **Nhiệm vụ 3** | Phân rã chuỗi thời gian | ✅ Trend + Seasonality + Residual (period=12) |
+# | **Nhiệm vụ 1** | Xử lý dữ liệu | Kiểm tra chất lượng, fill theo nhóm, gắn cờ ngoại lai, gộp Tuần→Tháng |
+# | **Nhiệm vụ 2** | Trực quan hóa | Line Chart, Bar Chart, Pie Chart, Scatter Plot |
+# | **Nhiệm vụ 3** | Phân rã chuỗi thời gian | Trend + Seasonality + Residual (period=12) |
 # 
 # **Các file biểu đồ đã được lưu:**
 # - `01_Outlier_Boxplot.png` — Kiểm tra ngoại lai

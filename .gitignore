@@ -10,3 +10,7 @@ __pycache__/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Codex local files
+.codex/
+.codex
